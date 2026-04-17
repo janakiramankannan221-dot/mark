@@ -393,7 +393,8 @@
     <div class="admin-header">
       <h2>Admin Panel</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn-sm" onclick="exportCSV()">Export Scores</button>
+        <button class="btn-sm" onclick="exportCSV()">Export Scores CSV</button>
+        <button class="btn-sm" style="background:#f0fdf4;color:#16a34a;border-color:#86efac;" onclick="exportExcel()">⬇ Download Excel</button>
         <button class="btn-sm" onclick="exportStudentsCSV()">Export Students</button>
         <button class="btn-danger-sm" onclick="clearAllData()">Clear All</button>
         <button class="btn-sm" onclick="goHome()">← Exit</button>
@@ -864,6 +865,32 @@ async function exportCSV() {
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   a.download = 'student_marks.csv';
   a.click();
+}
+
+async function exportExcel() {
+  const studentsSnap = await db.collection('students').get();
+  const subsSnap = await db.collection('submissions').get();
+
+  const students = {};
+  studentsSnap.forEach(doc => { students[doc.id] = doc.data(); });
+  const subs = {};
+  subsSnap.forEach(doc => { subs[doc.id] = doc.data(); });
+
+  const rows = [['Reg No', 'Name', 'Score', 'Submitted At']];
+  Object.entries(students).forEach(([reg, data]) => {
+    const sub = subs[reg];
+    if (sub) {
+      rows.push([reg, data.name, sub.score, sub.submittedAt]);
+    } else {
+      rows.push([reg, data.name, 'Not Submitted', '']);
+    }
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:16},{wch:28},{wch:10},{wch:24}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Marks');
+  XLSX.writeFile(wb, 'student_marks.xlsx');
 }
 
 async function exportStudentsCSV() {
