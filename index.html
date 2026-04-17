@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Mark Entry</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #0f2d5e;
+    --navy-mid: #1a4080;
+    --blue: #2563eb;
+    --blue-light: #dbeafe;
+    --green: #16a34a;
+    --green-light: #dcfce7;
+    --red: #dc2626;
+    --red-light: #fee2e2;
+    --amber: #d97706;
+    --amber-light: #fef3c7;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-400: #94a3b8;
+    --gray-600: #475569;
+    --gray-800: #1e293b;
+    --white: #ffffff;
+    --radius: 10px;
+    --radius-lg: 14px;
+    --shadow: 0 4px 24px rgba(15,45,94,0.10);
+    --shadow-sm: 0 1px 4px rgba(15,45,94,0.08);
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--gray-50);
+    min-height: 100vh;
+    color: var(--gray-800);
+  }
+
+  header {
+    background: var(--navy);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-logo { color: white; font-weight: 700; font-size: 17px; letter-spacing: -0.3px; }
+  .header-logo span { color: #93c5fd; }
+  .admin-btn {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  .admin-btn:hover { background: rgba(255,255,255,0.2); }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── STUDENT ENTRY PAGE ── */
+  .hero {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+    padding: 48px 2rem 64px;
+    text-align: center;
+  }
+  .hero h1 { color: white; font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+  .hero p { color: #93c5fd; font-size: 15px; }
+
+  .lookup-card {
+    max-width: 420px;
+    margin: -32px auto 0;
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 28px;
+    position: relative;
+    z-index: 1;
+  }
+  .lookup-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--gray-800); }
+
+  .input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .input-group label { font-size: 13px; font-weight: 500; color: var(--gray-600); }
+  .input-group input {
+    padding: 10px 14px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius);
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    color: var(--gray-800);
+    transition: border-color 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .input-group input:focus { outline: none; border-color: var(--blue); }
+  .input-group input::placeholder { text-transform: none; letter-spacing: 0; color: var(--gray-400); font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; }
+
+  .error-msg { font-size: 13px; color: var(--red); display: none; margin-top: 4px; }
+
+  .btn-primary {
+    width: 100%;
+    background: var(--blue);
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-primary:active { transform: scale(0.99); }
+
+  /* ── MARK ENTRY PAGE ── */
+  .mark-page-wrap { max-width: 640px; margin: 0 auto; padding: 28px 1.5rem 48px; }
+
+  .student-info-card {
+    background: var(--blue-light);
+    border: 1.5px solid #bfdbfe;
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .student-meta h3 { font-size: 16px; font-weight: 700; color: #1e3a8a; }
+  .student-meta p { font-size: 13px; color: #1d4ed8; margin-top: 2px; }
+
+  .marks-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--gray-200);
+    overflow: hidden;
+  }
+  .marks-card-header {
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 14px 20px;
+    font-size: 14px; font-weight: 600; color: var(--gray-600);
+    display: grid;
+    grid-template-columns: 1fr 120px 120px;
+    gap: 12px;
+  }
+  .mark-row {
+    padding: 14px 20px;
+    display: grid;
+    grid-template-columns: 1fr 120px 120px;
+    gap: 12px;
+    align-items: center;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .mark-row:last-child { border-bottom: none; }
+  .subject-name { font-size: 14px; font-weight: 500; }
+  .subject-code { font-size: 12px; color: var(--gray-400); font-family: 'DM Mono', monospace; }
+
+  .mark-input {
+    padding: 8px 12px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    text-align: center;
+    color: var(--gray-800);
+    width: 100%;
+    transition: border-color 0.15s;
+  }
+  .mark-input:focus { outline: none; border-color: var(--blue); }
+  .mark-input.invalid { border-color: var(--red); background: var(--red-light); }
+
+  .mark-display {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-400);
+    font-family: 'DM Mono', monospace;
+  }
+  .mark-display.pass { color: var(--green); }
+  .mark-display.fail { color: var(--red); }
+
+  .submit-section { margin-top: 20px; display: flex; gap: 10px; align-items: center; }
+  .btn-back {
+    background: white; color: var(--gray-600);
+    border: 1.5px solid var(--gray-200);
+    padding: 12px 20px; border-radius: var(--radius);
+    font-size: 14px; font-weight: 500; cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  .btn-back:hover { border-color: var(--gray-400); }
+
+  /* ── SUCCESS PAGE ── */
+  .success-wrap {
+    max-width: 420px; margin: 60px auto;
+    text-align: center; padding: 0 1.5rem;
+  }
+  .success-icon {
+    width: 72px; height: 72px;
+    background: var(--green-light);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 32px;
+  }
+  .success-wrap h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .success-wrap p { color: var(--gray-600); font-size: 15px; line-height: 1.6; }
+
+  /* ── ADMIN PAGE ── */
+  .admin-wrap { max-width: 900px; margin: 0 auto; padding: 28px 1.5rem 48px; }
+  .admin-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .admin-header h2 { font-size: 20px; font-weight: 700; }
+  .btn-sm {
+    background: white; color: var(--gray-600);
+    border: 1.5px solid var(--gray-200);
+    padding: 7px 14px; border-radius: 8px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-sm:hover { border-color: var(--gray-400); }
+  .btn-danger-sm {
+    background: var(--red-light); color: var(--red);
+    border: 1.5px solid #fca5a5;
+    padding: 7px 14px; border-radius: 8px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    font-family: inherit;
+  }
+
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+  .stat-card {
+    background: white; border-radius: var(--radius-lg);
+    border: 1px solid var(--gray-200);
+    padding: 16px 18px;
+    box-shadow: var(--shadow-sm);
+  }
+  .stat-label { font-size: 12px; color: var(--gray-400); font-weight: 500; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 26px; font-weight: 700; color: var(--gray-800); }
+
+  .table-wrap {
+    background: white; border-radius: var(--radius-lg);
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-sm);
+    overflow-x: auto;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 600px; }
+  thead { background: var(--gray-50); }
+  th { padding: 12px 14px; text-align: left; font-weight: 600; color: var(--gray-600); font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--gray-200); }
+  td { padding: 12px 14px; border-bottom: 1px solid var(--gray-100); color: var(--gray-800); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--gray-50); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-pass { background: var(--green-light); color: var(--green); }
+  .badge-fail { background: var(--red-light); color: var(--red); }
+  .badge-avg { background: var(--amber-light); color: var(--amber); }
+
+  .empty-state {
+    text-align: center; padding: 48px 20px;
+    color: var(--gray-400); font-size: 14px;
+  }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(15,45,94,0.5);
+    z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: white; border-radius: var(--radius-lg);
+    padding: 28px; width: 340px;
+    box-shadow: 0 20px 60px rgba(15,45,94,0.2);
+  }
+  .modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 18px; }
+  .btn-cancel {
+    flex: 1; background: white; color: var(--gray-600);
+    border: 1.5px solid var(--gray-200);
+    padding: 10px; border-radius: var(--radius);
+    font-size: 14px; font-weight: 500; cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-confirm {
+    flex: 1; background: var(--navy); color: white;
+    border: none; padding: 10px; border-radius: var(--radius);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    font-family: inherit;
+  }
+  .pw-error { font-size: 12px; color: var(--red); margin-top: 6px; display: none; }
+
+  @media (max-width: 520px) {
+    .marks-card-header, .mark-row { grid-template-columns: 1fr 90px; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-logo">Mark<span>Entry</span> Portal</div>
+  <button class="admin-btn" onclick="openAdminModal()">Admin Panel</button>
+</header>
+
+<!-- PAGE: LOOKUP -->
+<div id="page-lookup" class="page active">
+  <div class="hero">
+    <h1>Student Mark Submission</h1>
+    <p>Enter your register number to get started</p>
+  </div>
+  <div class="lookup-card">
+    <h2>Find Your Details</h2>
+    <div class="input-group">
+      <label>Register Number</label>
+      <input type="text" id="reg-input" placeholder="e.g. 422425106014" maxlength="12" oninput="clearError()" onkeydown="if(event.key==='Enter')lookupStudent()" inputmode="numeric"/>
+      <span class="error-msg" id="reg-error">Register number not found. Please try again.</span>
+    </div>
+    <button class="btn-primary" onclick="lookupStudent()">Look Up →</button>
+  </div>
+</div>
+
+<!-- PAGE: MARK ENTRY -->
+<div id="page-marks" class="page">
+  <div class="mark-page-wrap">
+    <div class="student-info-card">
+      <div class="avatar" id="student-avatar">AB</div>
+      <div class="student-meta">
+        <h3 id="student-name">—</h3>
+        <p id="student-meta-info">—</p>
+      </div>
+    </div>
+
+    <div class="marks-card">
+      <div class="marks-card-header">
+        <div>Subject</div>
+        <div style="text-align:center">Score (/ 15)</div>
+      </div>
+      <div id="mark-rows"></div>
+    </div>
+
+    <div class="submit-section">
+      <button class="btn-back" onclick="goBack()">← Back</button>
+      <button class="btn-primary" style="flex:1" onclick="submitMarks()">Submit Marks</button>
+    </div>
+    <div id="submit-error" style="font-size:13px;color:var(--red);margin-top:10px;display:none;"></div>
+  </div>
+</div>
+
+<!-- PAGE: SUCCESS -->
+<div id="page-success" class="page">
+  <div class="success-wrap">
+    <div class="success-icon">✓</div>
+    <h2>Marks Submitted!</h2>
+    <p id="success-msg">Your marks have been recorded successfully.</p>
+    <button class="btn-primary" style="margin-top:24px" onclick="goHome()">Done</button>
+  </div>
+</div>
+
+<!-- PAGE: ADMIN -->
+<div id="page-admin" class="page">
+  <div class="admin-wrap">
+    <div class="admin-header">
+      <h2>Admin Panel</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-sm" onclick="exportCSV()">Export Scores</button>
+        <button class="btn-sm" onclick="exportStudentsCSV()">Export Students</button>
+        <button class="btn-danger-sm" onclick="clearAllData()">Clear All</button>
+        <button class="btn-sm" onclick="goHome()">← Exit</button>
+      </div>
+    </div>
+
+    <div class="marks-card" style="margin-bottom: 24px; padding: 20px;">
+      <h3 style="font-size: 16px; margin-bottom: 12px; color: var(--gray-800);">Add New Student</h3>
+      <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap: wrap;">
+        <div class="input-group" style="margin-bottom:0; flex:1; min-width: 150px;">
+          <label>Register Number</label>
+          <input type="text" id="new-reg" placeholder="e.g. 422425106014" maxlength="12" inputmode="numeric"/>
+        </div>
+        <div class="input-group" style="margin-bottom:0; flex:2; min-width: 200px;">
+          <label>Student Name</label>
+          <input type="text" id="new-name" placeholder="e.g. John Doe" style="text-transform:none"/>
+        </div>
+        <button class="btn-primary" style="width:auto; padding: 10px 20px;" onclick="addStudent()">Add Student</button>
+      </div>
+      <div id="add-student-msg" style="margin-top: 8px; font-size: 13px; display:none;"></div>
+    </div>
+
+    <div class="marks-card" style="margin-bottom: 24px; padding: 20px;">
+      <h3 style="font-size: 16px; margin-bottom: 12px; color: var(--gray-800);">Bulk Upload Students (Excel/CSV)</h3>
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap: wrap;">
+        <input type="file" id="csv-upload" accept=".csv, .xls, .xlsx" style="flex:1; min-width: 200px; font-family: inherit; font-size: 14px;"/>
+        <button class="btn-primary" style="width:auto; padding: 10px 20px;" onclick="uploadCSV()">Upload File</button>
+      </div>
+      <div id="upload-csv-msg" style="margin-top: 8px; font-size: 13px; display:none;"></div>
+      <p style="margin-top: 8px; font-size: 12px; color: var(--gray-400);">Format: <strong>Reg No, Name</strong>. The first row is ignored if it contains headers.</p>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total Registered</div>
+        <div class="stat-value" id="stat-registered">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Submitted</div>
+        <div class="stat-value" id="stat-submitted" style="color:var(--green)">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pending</div>
+        <div class="stat-value" id="stat-pending" style="color:var(--amber)">0</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr id="table-header"></tr>
+        </thead>
+        <tbody id="admin-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN LOGIN MODAL -->
+<div class="modal-overlay" id="admin-modal">
+  <div class="modal">
+    <h3>Admin Login</h3>
+    <div class="input-group">
+      <label>Password</label>
+      <input type="password" id="admin-pw-input" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')verifyAdmin()"/>
+      <span class="pw-error" id="pw-error">Incorrect password.</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeAdminModal()">Cancel</button>
+      <button class="btn-confirm" onclick="verifyAdmin()">Enter</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ADMIN_PASSWORD = "admin123";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBzlhna7Ev19Xkw5kzHCJ7pJTBuc9BSCRw",
+  authDomain: "mark-4cf7c.firebaseapp.com",
+  projectId: "mark-4cf7c",
+  storageBucket: "mark-4cf7c.firebasestorage.app",
+  messagingSenderId: "46895898721",
+  appId: "1:46895898721:web:f08421342948b757e18a20",
+  measurementId: "G-FSN2575TH8"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let currentStudent = null;
+let currentReg = null;
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function goHome() { showPage('page-lookup'); currentStudent = null; currentReg = null; }
+function goBack() { showPage('page-lookup'); }
+
+function clearError() {
+  document.getElementById('reg-error').style.display = 'none';
+  document.getElementById('reg-input').style.borderColor = '';
+}
+
+// ── STUDENTS MANAGEMENT ──
+async function addStudent() {
+  const regInput = document.getElementById('new-reg');
+  const nameInput = document.getElementById('new-name');
+  const msgEl = document.getElementById('add-student-msg');
+  
+  const reg = regInput.value.trim().toUpperCase();
+  const name = nameInput.value.trim();
+  
+  if (!reg || !name) {
+    msgEl.textContent = 'Please provide both Register Number and Name.';
+    msgEl.style.color = 'var(--red)';
+    msgEl.style.display = 'block';
+    return;
+  }
+  
+  msgEl.textContent = 'Saving to database...';
+  msgEl.style.color = 'var(--blue)';
+  msgEl.style.display = 'block';
+  
+  try {
+    await db.collection('students').doc(reg).set({ name });
+    msgEl.textContent = `Student ${name} (${reg}) added successfully!`;
+    msgEl.style.color = 'var(--green)';
+    regInput.value = '';
+    nameInput.value = '';
+    loadAdminPage();
+  } catch(e) {
+    msgEl.textContent = 'Error adding student to database.';
+    msgEl.style.color = 'var(--red)';
+  }
+  
+  setTimeout(() => { msgEl.style.display = 'none'; }, 3000);
+}
+
+function uploadCSV() {
+  const fileInput = document.getElementById('csv-upload');
+  const msgEl = document.getElementById('upload-csv-msg');
+  
+  if (!fileInput.files.length) {
+    msgEl.textContent = 'Please select a file first.';
+    msgEl.style.color = 'var(--red)';
+    msgEl.style.display = 'block';
+    return;
+  }
+  
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+  
+  reader.onload = function(e) {
+    let sheetData;
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+    } catch (err) {
+      console.error(err);
+      msgEl.textContent = 'Error parsing file. Are you connected to the internet to load the parser?';
+      msgEl.style.color = 'var(--red)';
+      msgEl.style.display = 'block';
+      return;
+    }
+    
+    if (!sheetData || sheetData.length === 0) {
+      msgEl.textContent = 'File is empty.';
+      msgEl.style.color = 'var(--red)';
+      msgEl.style.display = 'block';
+      return;
+    }
+    
+    let studentsAdded = 0;
+    
+    let startIndex = 0;
+    let regCol = -1;
+    let nameCol = -1;
+
+    // Scan the first few rows to auto-detect which columns are Reg No and Name
+    for(let r=0; r<Math.min(5, sheetData.length); r++) {
+       for(let c=0; c<sheetData[r].length; c++) {
+          let cell = String(sheetData[r][c]).toLowerCase();
+          if(cell.includes('reg') || cell.includes('roll')) regCol = c;
+          if(cell.includes('name') || cell.includes('student')) nameCol = c;
+       }
+       if(regCol !== -1 && nameCol !== -1) {
+           startIndex = r + 1; // Start importing from the row *after* headers
+           break;
+       }
+    }
+
+    // If headers weren't found, try to guess based on the data in the first row
+    if (regCol === -1 || nameCol === -1) {
+      const firstRow = sheetData[startIndex] || [];
+      // Guess Reg No is the column with a large number
+      regCol = firstRow.findIndex(cell => String(cell).length >= 5 && !isNaN(parseInt(cell)));
+      if (regCol === -1) regCol = 0; // Fallback to column A
+      
+      // Guess Name is the column with text
+      nameCol = firstRow.findIndex((cell, idx) => idx !== regCol && String(cell).match(/[a-zA-Z]/));
+      if (nameCol === -1) nameCol = 1; // Fallback to column B
+    }
+    
+    msgEl.textContent = 'Uploading to database...';
+    msgEl.style.color = 'var(--blue)';
+    msgEl.style.display = 'block';
+
+    const promises = [];
+    for (let i = startIndex; i < sheetData.length; i++) {
+      const row = sheetData[i];
+      if (row.length > Math.max(regCol, nameCol)) {
+        const reg = String(row[regCol]).trim().toUpperCase();
+        const name = String(row[nameCol]).trim();
+        if (reg && name && reg !== 'UNDEFINED' && reg !== '') {
+          promises.push(db.collection('students').doc(reg).set({ name }));
+          studentsAdded++;
+        }
+      }
+    }
+    
+    if (studentsAdded === 0) {
+      msgEl.textContent = 'No valid students found. Ensure columns for Register Number and Name exist.';
+      msgEl.style.color = 'var(--amber)';
+      msgEl.style.display = 'block';
+      return;
+    }
+    
+    Promise.all(promises).then(() => {
+      loadAdminPage(); // Refresh table immediately
+      msgEl.textContent = `Successfully uploaded ${studentsAdded} student(s)!`;
+      msgEl.style.color = 'var(--green)';
+      fileInput.value = '';
+      setTimeout(() => { msgEl.style.display = 'none'; }, 4000);
+    }).catch(err => {
+      msgEl.textContent = 'Error uploading to database.';
+      msgEl.style.color = 'var(--red)';
+    });
+  };
+  
+  reader.readAsArrayBuffer(file);
+}
+
+// ── LOOKUP ──
+async function lookupStudent() {
+  const raw = document.getElementById('reg-input').value.trim().toUpperCase();
+  if (!raw) return;
+  
+  const btn = document.querySelector('.lookup-wrap .btn-primary');
+  const oldText = btn.textContent;
+  btn.textContent = "Loading...";
+  btn.disabled = true;
+  clearError();
+  
+  try {
+    const studentDoc = await db.collection('students').doc(raw).get();
+    if (!studentDoc.exists) {
+      document.getElementById('reg-error').textContent = 'Register number not found. Ask admin to add you.';
+      document.getElementById('reg-error').style.display = 'block';
+      document.getElementById('reg-input').style.borderColor = 'var(--red)';
+      btn.textContent = oldText;
+      btn.disabled = false;
+      return;
+    }
+    const student = studentDoc.data();
+
+    // Check already submitted
+    const subDoc = await db.collection('submissions').doc(raw).get();
+    if (subDoc.exists) {
+      alert('Marks for ' + raw + ' have already been submitted!');
+      btn.textContent = oldText;
+      btn.disabled = false;
+      return;
+    }
+
+    currentReg = raw;
+  currentStudent = student;
+
+  const nameParts = student.name.split(' ').filter(w => w.length > 0);
+  const initials = nameParts.length > 0 
+    ? nameParts.map(w => w[0]).join('').slice(0,2).toUpperCase()
+    : 'ST';
+  
+  document.getElementById('student-avatar').textContent = initials;
+  document.getElementById('student-name').textContent = student.name;
+  document.getElementById('student-meta-info').textContent = raw; // Just Reg No
+
+  renderMarkRows();
+  showPage('page-marks');
+  document.getElementById('reg-input').value = '';
+  } catch(err) {
+    alert("Database connection error");
+  } finally {
+    btn.textContent = oldText;
+    btn.disabled = false;
+  }
+}
+
+function renderMarkRows() {
+  const container = document.getElementById('mark-rows');
+  container.innerHTML = `
+    <div class="mark-row">
+      <div>
+        <div class="subject-name">Total Score</div>
+        <div class="subject-code">Single Entry</div>
+      </div>
+      <div>
+        <input class="mark-input" type="number" min="0" max="15" placeholder="0 – 15"
+          id="single-mark" oninput="updateStatus()"/>
+      </div>
+    </div>
+  `;
+}
+
+function updateStatus() {
+  const input = document.getElementById('single-mark');
+  const val = parseInt(input.value);
+  input.classList.remove('invalid');
+
+  if (input.value !== '' && (isNaN(val) || val < 0 || val > 15)) {
+    input.classList.add('invalid');
+  }
+}
+
+function submitMarks() {
+  const input = document.getElementById('single-mark');
+  const val = parseInt(input.value);
+  const errEl = document.getElementById('submit-error');
+
+  if (input.value === '' || isNaN(val) || val < 0 || val > 15) {
+    input.classList.add('invalid');
+    errEl.textContent = 'Please enter a valid mark (0–15).';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  const btn = document.querySelector('.marks-card .btn-primary');
+  btn.textContent = 'Submitting...';
+  btn.disabled = true;
+
+  const subData = {
+    reg: currentReg,
+    name: currentStudent.name,
+    score: val,
+    submittedAt: new Date().toLocaleString('en-IN'),
+  };
+  
+  db.collection('submissions').doc(currentReg).set(subData).then(() => {
+    document.getElementById('success-msg').textContent =
+      currentStudent.name + ' — Score: ' + val + ' / 15';
+    showPage('page-success');
+    btn.textContent = 'Submit';
+    btn.disabled = false;
+  }).catch(e => {
+    alert("Error saving marks to database.");
+    btn.textContent = 'Submit';
+    btn.disabled = false;
+  });
+}
+
+// ── ADMIN ──
+function openAdminModal() {
+  document.getElementById('admin-modal').classList.add('open');
+  document.getElementById('admin-pw-input').value = '';
+  document.getElementById('pw-error').style.display = 'none';
+  setTimeout(() => document.getElementById('admin-pw-input').focus(), 100);
+}
+function closeAdminModal() {
+  document.getElementById('admin-modal').classList.remove('open');
+}
+function verifyAdmin() {
+  const pw = document.getElementById('admin-pw-input').value;
+  if (pw === ADMIN_PASSWORD) {
+    closeAdminModal();
+    loadAdminPage();
+    showPage('page-admin');
+  } else {
+    document.getElementById('pw-error').style.display = 'block';
+  }
+}
+
+async function loadAdminPage() {
+  document.getElementById('admin-tbody').innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--gray-400);">Loading from database...</td></tr>`;
+
+  try {
+    const studentsSnap = await db.collection('students').get();
+    const subsSnap = await db.collection('submissions').get();
+
+    const students = {};
+    studentsSnap.forEach(doc => { students[doc.id] = doc.data(); });
+    
+    const subs = {};
+    subsSnap.forEach(doc => { subs[doc.id] = doc.data(); });
+    
+    const studentList = Object.entries(students).map(([reg, data]) => {
+    return {
+      reg,
+      name: data.name,
+      sub: subs[reg] || null
+    };
+  });
+
+  const totalRegistered = studentList.length;
+  const totalSubmitted = studentList.filter(s => s.sub).length;
+  const totalPending = totalRegistered - totalSubmitted;
+
+  document.getElementById('stat-registered').textContent = totalRegistered;
+  document.getElementById('stat-submitted').textContent = totalSubmitted;
+  document.getElementById('stat-pending').textContent = totalPending;
+
+  // Build header
+  const headerRow = document.getElementById('table-header');
+  headerRow.innerHTML = ['#', 'Reg No', 'Name', 'Status', 'Score', 'Submitted At']
+    .map(h => `<th>${h}</th>`).join('');
+
+  const tbody = document.getElementById('admin-tbody');
+  if (studentList.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No students registered yet.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = studentList.map((s, i) => {
+    if (s.sub) {
+      return `
+        <tr>
+          <td style="color:var(--gray-400)">${i+1}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:12px">${s.reg}</td>
+          <td style="font-weight:500">${s.name}</td>
+          <td><span class="badge badge-pass">Submitted</span></td>
+          <td style="font-weight:600;font-family:'DM Mono',monospace">${s.sub.score}</td>
+          <td style="color:var(--gray-400);font-size:12px">${s.sub.submittedAt}</td>
+        </tr>
+      `;
+    } else {
+      return `
+        <tr>
+          <td style="color:var(--gray-400)">${i+1}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:12px">${s.reg}</td>
+          <td style="font-weight:500">${s.name}</td>
+          <td><span class="badge badge-avg" style="background:#ffedd5;color:#c2410c;">Pending</span></td>
+          <td style="color:var(--gray-400)">—</td>
+          <td style="color:var(--gray-400)">—</td>
+        </tr>
+      `;
+    }
+  }).join('');
+  } catch(e) {
+    document.getElementById('admin-tbody').innerHTML = `<tr><td colspan="6" style="text-align:center;color:red;">Error loading data. Check database rules.</td></tr>`;
+  }
+}
+
+async function exportCSV() {
+  const subsSnap = await db.collection('submissions').get();
+  const subs = [];
+  subsSnap.forEach(doc => subs.push(doc.data()));
+  if (!subs.length) { alert('No data to export.'); return; }
+  const headers = ['Reg No', 'Name', 'Score', 'Submitted At'];
+  const rows = subs.map(s => [
+    s.reg, s.name, s.score, s.submittedAt
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'student_marks.csv';
+  a.click();
+}
+
+async function exportStudentsCSV() {
+  const studentsSnap = await db.collection('students').get();
+  const entries = [];
+  studentsSnap.forEach(doc => entries.push([doc.id, doc.data()]));
+  if (!entries.length) { alert('No students registered.'); return; }
+  
+  const headers = ['Reg No', 'Name'];
+  const rows = entries.map(([reg, data]) => [reg, data.name]);
+  
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'registered_students.csv';
+  a.click();
+}
+
+async function clearAllData() {
+  if (confirm('Delete ALL submissions and registered students? This cannot be undone.')) {
+    const studentsSnap = await db.collection('students').get();
+    const subsSnap = await db.collection('submissions').get();
+    
+    const promises = [];
+    studentsSnap.forEach(doc => promises.push(doc.ref.delete()));
+    subsSnap.forEach(doc => promises.push(doc.ref.delete()));
+    
+    await Promise.all(promises);
+    alert('All database records cleared.');
+    loadAdminPage();
+  }
+}
+
+// Close modal on overlay click
+document.getElementById('admin-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeAdminModal();
+});
+</script>
+</body>
+</html>
