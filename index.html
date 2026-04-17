@@ -812,7 +812,7 @@ async function loadAdminPage() {
 
   // Build header
   const headerRow = document.getElementById('table-header');
-  headerRow.innerHTML = ['#', 'Reg No', 'Name', 'Status', 'Score', 'Submitted At']
+  headerRow.innerHTML = ['#', 'Reg No', 'Name', 'Status', 'Score', 'Submitted At', 'Action']
     .map(h => `<th>${h}</th>`).join('');
 
   const tbody = document.getElementById('admin-tbody');
@@ -831,6 +831,7 @@ async function loadAdminPage() {
           <td><span class="badge badge-pass">Submitted</span></td>
           <td style="font-weight:600;font-family:'DM Mono',monospace">${s.sub.score}</td>
           <td style="color:var(--gray-400);font-size:12px">${s.sub.submittedAt}</td>
+          <td><button class="btn-sm" style="font-size:12px;padding:4px 10px;" onclick="editScore('${s.reg}','${s.name}',${s.sub.score})">✏ Edit</button></td>
         </tr>
       `;
     } else {
@@ -842,6 +843,7 @@ async function loadAdminPage() {
           <td><span class="badge badge-avg" style="background:#ffedd5;color:#c2410c;">Pending</span></td>
           <td style="color:var(--gray-400)">—</td>
           <td style="color:var(--gray-400)">—</td>
+          <td><button class="btn-sm" style="font-size:12px;padding:4px 10px;" onclick="editScore('${s.reg}','${s.name}','')">+ Add</button></td>
         </tr>
       `;
     }
@@ -865,6 +867,28 @@ async function exportCSV() {
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   a.download = 'student_marks.csv';
   a.click();
+}
+
+async function editScore(reg, name, currentScore) {
+  const newScore = prompt(`Edit score for ${name} (${reg})\nCurrent: ${currentScore !== '' ? currentScore : 'Not submitted'}\n\nEnter new score (0–15):`, currentScore);
+  if (newScore === null) return; // Cancelled
+  const val = parseInt(newScore);
+  if (isNaN(val) || val < 0 || val > 15) {
+    alert('Invalid score. Please enter a number between 0 and 15.');
+    return;
+  }
+  try {
+    await db.collection('submissions').doc(reg).set({
+      reg,
+      name,
+      score: val,
+      submittedAt: new Date().toLocaleString('en-IN') + ' (edited by admin)',
+    });
+    alert(`Score updated to ${val} for ${name}!`);
+    loadAdminPage();
+  } catch(e) {
+    alert('Error updating score. Check database rules.');
+  }
 }
 
 async function exportExcel() {
