@@ -646,7 +646,7 @@ async function lookupStudent() {
   const raw = document.getElementById('reg-input').value.trim().toUpperCase();
   if (!raw) return;
   
-  const btn = document.querySelector('.lookup-wrap .btn-primary');
+  const btn = document.querySelector('.lookup-card .btn-primary');
   const oldText = btn.textContent;
   btn.textContent = "Loading...";
   btn.disabled = true;
